@@ -40,6 +40,11 @@ class puppet::server::puppetserver (
   $jvm_min_heap_size = $::puppet::server_jvm_min_heap_size,
   $jvm_max_heap_size = $::puppet::server_jvm_max_heap_size,
   $jvm_extra_args    = $::puppet::server_jvm_extra_args,
+  $ssl_ca_cert       = $::puppet::server::ssl_ca_cert,
+  $ssl_ca_crl        = $::puppet::server::ssl_ca_crl,
+  $ssl_cert          = $::puppet::server::ssl_cert,
+  $ssl_cert_key      = $::puppet::server::ssl_cert_key,
+  $ssl_chain         = $::puppet::server::ssl_chain,
 ) {
 
   $puppetserver_package = pick($::puppet::server_package, 'puppetserver')
@@ -56,5 +61,37 @@ class puppet::server::puppetserver (
       "set JAVA_BIN ${java_bin}",
     ],
   }
+
+  ::ca::config::puppetserver{ 'webserver.conf/webserver/ssl-host':
+    value => '0.0.0.0',
+  }
+  ::ca::config::puppetserver{ 'webserver.conf/webserver/ssl-port':
+    value => '8140',
+  }
+
+  if $::puppet::server_ca {
+    $authority_service = 'present'
+    $authority_disabled_service = 'absent'
+  } else {
+    $authority_service = 'absent'
+    $authority_disabled_service = 'present'
+    ::puppet::server::config::puppetserver{ 'webserver.conf/webserver/ssl-cert':
+      value => $ssl_cert,
+    }
+    ::puppet::server::config::puppetserver{ 'webserver.conf/webserver/ssl-key':
+      value => $ssl_cert_key,
+    }
+    ::puppet::server::config::puppetserver{ 'webserver.conf/webserver/ssl-ca-cert':
+      value => $ssl_ca_cert,
+    }
+  }
+  ::puppet::server::config::bootstrap { 'puppetlabs.services.ca.certificate-authority-service/certificate-authority-service':
+    ensure => $authority_service,
+  }
+  ::puppet::server::config::bootstrap{ 'puppetlabs.services.ca.certificate-authority-disabled-service/certificate-authority-disabled-service' :
+    ensure => $authority_disabled_service,
+  }
+
+
 
 }
